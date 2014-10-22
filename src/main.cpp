@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
@@ -14,7 +15,6 @@ int main()
     char *test[2];
     cout << "$ ";
     cin >> input;
-    //cout << "You typed: " << input << endl;
     char cinput[40];
     strcpy(cinput, input.c_str());
     test[0] = cinput;
@@ -22,7 +22,7 @@ int main()
     int returnval = execvp(cinput, test);
     if (returnval == -1) 
     {
-        cerr << "Error " << errno << " calling execvp" << endl;
+        perror("Error");
         return 1;
     }
     return 0;
