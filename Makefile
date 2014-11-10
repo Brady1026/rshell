@@ -1,17 +1,18 @@
-OBJS = src/obj/main.o src/obj/cp.o
+RSHELLOBJS = src/obj/main.o
+CPOBJS = src/obj/cp.o
 CC = g++
 CFLAGS = -Wall -Werror -ansi -pedantic
 
 all: rshell cp
 
-rshell: $(OBJS) | bin
-	$(CC) $(CFLAGS) $(OBJS) -o bin/rshell
+rshell: $(RSHELLOBJS) | bin
+	$(CC) $(CFLAGS) $(RSHELLOBJS) -o bin/rshell
 
-cp: $(OBJS) | bin
-	$(CC) $(CFLAGS) $(OBJS) -o bin/cp
+cp: $(CPOBJS) | bin
+	$(CC) $(CFLAGS) $(CPOBJS) -o bin/cp
 
 src/obj/cp.o : src/cp.cpp | src/obj
-	$(CC) $(CFLGAS) -c src/cp.cpp -o src/obj/cp.o
+	$(CC) $(CFLAGS) -c src/cp.cpp -o src/obj/cp.o
 
 src/obj/main.o : src/main.cpp | src/obj
 	$(CC) $(CFLAGS) -c src/main.cpp -o src/obj/main.o
