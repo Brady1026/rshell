@@ -17,6 +17,9 @@ src/obj/cp.o : src/cp.cpp | src/obj
 src/obj/main.o : src/main.cpp | src/obj
 	$(CC) $(CFLAGS) -c src/main.cpp -o src/obj/main.o
 
+debug:	CFLAGS += -ggdb
+debug: all
+
 src/obj:
 	mkdir src/obj
 

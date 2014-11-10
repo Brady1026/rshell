@@ -12,17 +12,21 @@ using namespace std;
 int main()
 {
     string input;
-    char *test[2];
+    char *test[4];
     cout << "$ ";
-    cin >> input;
+    getline(cin, input);
     char cinput[40];
+    char delimit[] = " ";
     strcpy(cinput, input.c_str());
-    test[0] = cinput;
-    test[1] = NULL;
+    strtok(cinput, "#");
+    test[0] = strtok(cinput, delimit);
+    test[1] = strtok(NULL, delimit);
+    test[2] = strtok(NULL, delimit);
+    test[3] = '\0';
     int returnval = execvp(cinput, test);
     if (returnval == -1) 
     {
-        perror("Error");
+        perror("execvp()");
         return 1;
     }
     return 0;
