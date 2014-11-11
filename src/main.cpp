@@ -9,7 +9,7 @@
 
 using namespace std;
 
-int main()
+void shell()
 {
     string input;
     cout << "$ ";
@@ -20,16 +20,44 @@ int main()
     strtok(cinput, "#");
     char **args = new char*[input.size()];
     char *temp = strtok(cinput, delimit);
-    for(unsigned i = 0; temp != NULL; i++)
+    unsigned i = 0;
+    args[i] = temp;
+    for(i = 0; temp != NULL; i++)
     {
         args[i] = temp;
         temp = strtok(NULL, delimit);
     }
-    int returnval = execvp(args[0], args);
+    args[i] = temp;
+    if(strcmp(args[0], "exit") == 0)
+        exit(EXIT_SUCCESS);
+    int pid = fork();
+    int returnval = 0;
+    switch (pid)
+    {
+        case 0: returnval = execvp(args[0], args);
+                break;
+        case -1: perror("fork()");
+                 exit(EXIT_FAILURE);
+                 break;
+        default: if(waitpid(-1, NULL, 0) == -1)
+                 {
+                     perror("waitpid()");
+                     exit(EXIT_FAILURE);
+                 }
+                 break;
+    }
+    delete cinput;
+    delete args;
     if (returnval == -1) 
     {
         perror("execvp()");
-        return 1;
+        exit(EXIT_FAILURE);
     }
-    return 0;
+    return;
+}
+
+int main()
+{
+    while(true)
+        shell();
 }
