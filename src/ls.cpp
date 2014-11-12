@@ -22,9 +22,19 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     dirent *direntp;
+    struct stat *statp = new struct stat;
     int readdirerror = errno;
     while ((direntp = readdir(dirp)))
     {
+        if (stat(direntp->d_name, statp) == -1)
+        {
+            perror("stat");
+            exit(EXIT_FAILURE);
+        }
+        cout << statp->st_mode << '\t';
+        cout << statp->st_nlink << '\t';
+        cout << statp->st_size << '\t';
+        cout << statp->st_mtime << '\t';
         cout << direntp->d_name << endl;
     }
     if (readdirerror != errno)
@@ -37,5 +47,6 @@ int main(int argc, char *argv[])
         perror("closedir");
         exit(EXIT_FAILURE);
     }
+    delete statp;
     return 0;
 }
