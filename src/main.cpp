@@ -173,7 +173,7 @@ void exec_children(vector<command> *commands, int size)
         {
             if(commands->at(0).outtype.at(i) == 0)
             {
-                fdo = open(commands->at(0).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+                fdo = open(commands->at(0).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_EXCL, S_IRUSR | S_IWUSR);
                 if(fdo == -1)
                 {
                     perror("open()");
@@ -182,7 +182,7 @@ void exec_children(vector<command> *commands, int size)
             }
             else if(commands->at(0).outtype.at(i) == 1)
             {
-                fdo = open(commands->at(0).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_APPEND);
+                fdo = open(commands->at(0).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_APPEND | O_EXCL, S_IRUSR | S_IWUSR);
                 if(fdo == -1)
                 {
                     perror("open()");
