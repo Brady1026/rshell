@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <vector>
 
@@ -138,6 +140,70 @@ void parsetokens(vector<string> *tokens)
     }
 }
 
+void exec_children(vector<command> *commands, int size)
+{
+    int fdi, fdo;
+    const char **args = new const char*[size];
+    unsigned argindex = 0;
+    for(unsigned j = 0; j < commands->at(0).arguments.size(); j++)
+    {
+        args[argindex] = commands->at(0).arguments.at(j).c_str();
+        argindex++;
+    }
+    if(commands->at(0).infiles.size() > 0)
+    {
+        for(unsigned i = 0; i < commands->at(0).infiles.size(); i++)
+        {
+            fdi = open(commands->at(0).infiles.at(i).c_str(), O_RDONLY);
+            if(fdi == -1)
+            {
+                perror("open()");
+                exit(EXIT_FAILURE);
+            }
+        }
+        if(dup2(fdi, 0) == -1)
+        {
+            perror("dup2()");
+            exit(EXIT_FAILURE);
+        }
+    }
+    if(commands->at(0).outfiles.size() > 0)
+    {
+        for(unsigned i = 0; i < commands->at(0).outfiles.size(); i++)
+        {
+            if(commands->at(0).outtype.at(i) == 0)
+            {
+                fdo = open(commands->at(0).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+                if(fdo == -1)
+                {
+                    perror("open()");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else if(commands->at(0).outtype.at(i) == 1)
+            {
+                fdo = open(commands->at(0).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_APPEND);
+                if(fdo == -1)
+                {
+                    perror("open()");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+        if(dup2(fdo, 1) == -1)
+        {
+            perror("dup2()");
+            exit(EXIT_FAILURE);
+        }
+    }
+    int returnvalue = execvp(args[0], (char **)args);
+    if (returnvalue == -1)
+    {
+        perror("execvp()");
+        exit(EXIT_FAILURE);
+    }
+}
+
 void execute(vector<command> *commands, int size)
 {
     const char **args = new const char*[size];
@@ -153,15 +219,14 @@ void execute(vector<command> *commands, int size)
     if(strcmp(args[0], "exit") == 0)
         exit(EXIT_SUCCESS);
     int pid = fork();
-    int returnval = 0;
     switch (pid)
     {
-        case 0: returnval = execvp(args[0], (char **)args);
+        case 0: exec_children(commands, size);
                 break;
         case -1: perror("fork()");
                  exit(EXIT_FAILURE);
                  break;
-        default: if(waitpid(-1, NULL, 0) == -1)
+        default: if(waitpid(pid, NULL, 0) == -1)
                  {
                      perror("waitpid()");
                      exit(EXIT_FAILURE);
@@ -169,13 +234,7 @@ void execute(vector<command> *commands, int size)
                  break;
     }
     delete args;
-    if (returnval == -1) 
-    {
-        perror("execvp()");
-        exit(EXIT_FAILURE);
-    }
     return;
-
 }
 
 void shell()
