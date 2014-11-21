@@ -138,32 +138,15 @@ void parsetokens(vector<string> *tokens)
     }
 }
 
-void shell()
+void execute(vector<command> *commands, int size)
 {
-    string input;
-    cout << "$ ";
-    getline(cin, input);
-    char *cinput = new char[input.size()];
-    char delimit[] = " ";
-    strcpy(cinput, input.c_str());
-    strtok(cinput, "#");
-    const char **args = new const char*[input.size()];
-    char *temp = strtok(cinput, delimit);
-    vector<string> tokens;
-    for(unsigned i = 0; temp != NULL; i++)
-    {
-        tokens.push_back(temp);
-        temp = strtok(NULL, delimit);
-    }
-    parsetokens(&tokens);
-    vector<command> commands;
-    commandgen(&tokens, &commands);
+    const char **args = new const char*[size];
     unsigned argindex = 0;
-    for(unsigned i = 0; i < commands.size(); i++)
+    for(unsigned i = 0; i < commands->size(); i++)
     {
-        for(unsigned j = 0; j < commands.at(i).arguments.size(); j++)
+        for(unsigned j = 0; j < commands->at(i).arguments.size(); j++)
         {
-            args[argindex] = commands.at(i).arguments.at(j).c_str();
+            args[argindex] = commands->at(i).arguments.at(j).c_str();
             argindex++;
         }
     }
@@ -185,13 +168,36 @@ void shell()
                  }
                  break;
     }
-    delete cinput;
     delete args;
     if (returnval == -1) 
     {
         perror("execvp()");
         exit(EXIT_FAILURE);
     }
+    return;
+
+}
+
+void shell()
+{
+    string input;
+    cout << "$ ";
+    getline(cin, input);
+    char *cinput = new char[input.size()];
+    char delimit[] = " ";
+    strcpy(cinput, input.c_str());
+    strtok(cinput, "#");
+    char *temp = strtok(cinput, delimit);
+    vector<string> tokens;
+    for(unsigned i = 0; temp != NULL; i++)
+    {
+        tokens.push_back(temp);
+        temp = strtok(NULL, delimit);
+    }
+    parsetokens(&tokens);
+    vector<command> commands;
+    commandgen(&tokens, &commands);
+    execute(&commands, input.size());
     return;
 }
 
