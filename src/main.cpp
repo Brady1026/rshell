@@ -142,65 +142,145 @@ void parsetokens(vector<string> *tokens)
 
 void exec_children(vector<command> *commands, int size)
 {
-    int fdi, fdo;
-    const char **args = new const char*[size];
-    unsigned argindex = 0;
-    for(unsigned j = 0; j < commands->at(0).arguments.size(); j++)
+    unsigned commandno = 0;
+    int *pipefd = new int[size];
+    while(commandno < commands->size())
     {
-        args[argindex] = commands->at(0).arguments.at(j).c_str();
-        argindex++;
-    }
-    if(commands->at(0).infiles.size() > 0)
-    {
-        for(unsigned i = 0; i < commands->at(0).infiles.size(); i++)
+        if(commands->at(commandno).pipeout == true)
         {
-            fdi = open(commands->at(0).infiles.at(i).c_str(), O_RDONLY);
-            if(fdi == -1)
+            if(pipe(pipefd + (2 * commandno)) == -1)
             {
-                perror("open()");
+                perror("pipe()");
                 exit(EXIT_FAILURE);
             }
         }
-        if(dup2(fdi, 0) == -1)
+        commandno++;
+    }
+    vector<int> pids;
+    commandno = 0;
+    int pid = 0;
+    while(commandno < commands->size())
+    {
+        pid = fork();
+        if(pid == -1)
         {
-            perror("dup2()");
+            perror("fork()");
             exit(EXIT_FAILURE);
         }
-    }
-    if(commands->at(0).outfiles.size() > 0)
-    {
-        for(unsigned i = 0; i < commands->at(0).outfiles.size(); i++)
+        else if(pid == 0)
         {
-            if(commands->at(0).outtype.at(i) == 0)
+            if(commands->at(commandno).pipeout == true)
             {
-                fdo = open(commands->at(0).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-                if(fdo == -1)
+                if(dup2(pipefd[(2 * commandno) + 1], 1) == -1)
                 {
-                    perror("open()");
+                    perror("dup2()");
                     exit(EXIT_FAILURE);
                 }
             }
-            else if(commands->at(0).outtype.at(i) == 1)
+            if(commands->at(commandno).pipein == true)
             {
-                fdo = open(commands->at(0).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
-                if(fdo == -1)
+                if(dup2(pipefd[2 * commandno], 0) == -1)
                 {
-                    perror("open()");
+                    perror("dup2()");
                     exit(EXIT_FAILURE);
                 }
             }
+            for(unsigned i = 0; i < commands->size(); i++)
+            {
+                if(commands->at(i).pipeout == true)
+                {
+                    if(close(pipefd[2 * i]) == -1)
+                    {
+                        perror("close()");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                if(commands->at(i).pipein == true)
+                {
+                    if(close(pipefd[(2 * i) + 1] == -1))
+                    {
+                        perror("close()");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+            }
+            int fdi, fdo;
+            const char **args = new const char*[size];
+            unsigned argindex = 0;
+            for(unsigned j = 0; j < commands->at(commandno).arguments.size(); j++)
+            {
+                args[argindex] = commands->at(commandno).arguments.at(j).c_str();
+                argindex++;
+            }
+            args[argindex] = NULL;
+            if(commands->at(commandno).infiles.size() > 0)
+            {
+                for(unsigned i = 0; i < commands->at(commandno).infiles.size(); i++)
+                {
+                    fdi = open(commands->at(commandno).infiles.at(i).c_str(), O_RDONLY);
+                    if(fdi == -1)
+                    {
+                        perror("open()");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                if(dup2(fdi, 0) == -1)
+                {
+                    perror("dup2()");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            if(commands->at(commandno).outfiles.size() > 0)
+            {
+                for(unsigned i = 0; i < commands->at(commandno).outfiles.size(); i++)
+                {
+                    if(commands->at(commandno).outtype.at(i) == 0)
+                    {
+                        fdo = open(commands->at(commandno).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+                        if(fdo == -1)
+                        {
+                            perror("open()");
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+                    else if(commands->at(commandno).outtype.at(i) == 1)
+                    {
+                        fdo = open(commands->at(commandno).outfiles.at(i).c_str(), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+                        if(fdo == -1)
+                        {
+                            perror("open()");
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+                }
+                if(dup2(fdo, 1) == -1)
+                {
+                    perror("dup2()");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            int returnvalue = execvp(args[0], (char **)args);
+            if (returnvalue == -1)
+            {
+                perror("execvp()");
+                exit(EXIT_FAILURE);
+            }
+            delete args;
+            delete[] pipefd;
         }
-        if(dup2(fdo, 1) == -1)
+        else
         {
-            perror("dup2()");
+            pids.push_back(pid);
+        }
+        commandno++;
+    }
+    for(unsigned i = 0; i < pids.size(); i++)
+    {
+        if(waitpid(pids.at(i), NULL, 0) == -1)
+        {
+            perror("waitpid()");
             exit(EXIT_FAILURE);
         }
-    }
-    int returnvalue = execvp(args[0], (char **)args);
-    if (returnvalue == -1)
-    {
-        perror("execvp()");
-        exit(EXIT_FAILURE);
     }
 }
 
