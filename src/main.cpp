@@ -144,6 +144,7 @@ void exec_children(vector<command> *commands, int size)
 {
     unsigned commandno = 0;
     int *pipefd = new int[size];
+    vector<int> pipefdstoclose;
     while(commandno < commands->size())
     {
         if(commands->at(commandno).pipeout == true)
@@ -153,6 +154,8 @@ void exec_children(vector<command> *commands, int size)
                 perror("pipe()");
                 exit(EXIT_FAILURE);
             }
+            pipefdstoclose.push_back(pipefd[2 * commandno]);
+            pipefdstoclose.push_back(pipefd[(2 * commandno) + 1]);
         }
         commandno++;
     }
@@ -179,29 +182,18 @@ void exec_children(vector<command> *commands, int size)
             }
             if(commands->at(commandno).pipein == true)
             {
-                if(dup2(pipefd[2 * commandno], 0) == -1)
+                if(dup2(pipefd[2 * (commandno - 1)], 0) == -1)
                 {
                     perror("dup2()");
                     exit(EXIT_FAILURE);
                 }
             }
-            for(unsigned i = 0; i < commands->size(); i++)
+            for(unsigned i = 0; i < pipefdstoclose.size(); i++)
             {
-                if(commands->at(i).pipeout == true)
+                if(close(pipefdstoclose.at(i)) == -1)
                 {
-                    if(close(pipefd[2 * i]) == -1)
-                    {
-                        perror("close()");
-                        exit(EXIT_FAILURE);
-                    }
-                }
-                if(commands->at(i).pipein == true)
-                {
-                    if(close(pipefd[(2 * i) + 1] == -1))
-                    {
-                        perror("close()");
-                        exit(EXIT_FAILURE);
-                    }
+                    perror("close()");
+                    exit(EXIT_FAILURE);
                 }
             }
             int fdi, fdo;
@@ -274,6 +266,14 @@ void exec_children(vector<command> *commands, int size)
         }
         commandno++;
     }
+    for(unsigned i = 0; i < pipefdstoclose.size(); i++)
+    {
+        if(close(pipefdstoclose.at(i)) == -1)
+        {
+            perror("close()");
+            exit(EXIT_FAILURE);
+        }
+    }
     for(unsigned i = 0; i < pids.size(); i++)
     {
         if(waitpid(pids.at(i), NULL, 0) == -1)
@@ -282,6 +282,7 @@ void exec_children(vector<command> *commands, int size)
             exit(EXIT_FAILURE);
         }
     }
+    exit(EXIT_SUCCESS);
 }
 
 void execute(vector<command> *commands, int size)
