@@ -282,6 +282,7 @@ void exec_children(vector<command> *commands, int size)
             exit(EXIT_FAILURE);
         }
     }
+    delete[] pipefd;
     exit(EXIT_SUCCESS);
 }
 
@@ -314,7 +315,7 @@ void execute(vector<command> *commands, int size)
                  }
                  break;
     }
-    delete args;
+    delete[] args;
     return;
 }
 
@@ -323,7 +324,7 @@ void shell()
     string input;
     cout << "$ ";
     getline(cin, input);
-    char *cinput = new char[input.size()];
+    char *cinput = new char[input.size() + 1];
     char delimit[] = " ";
     strcpy(cinput, input.c_str());
     strtok(cinput, "#");
@@ -338,6 +339,7 @@ void shell()
     vector<command> commands;
     commandgen(&tokens, &commands);
     execute(&commands, input.size());
+    delete[] cinput;
     return;
 }
 
