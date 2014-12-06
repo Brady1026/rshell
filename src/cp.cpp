@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <fcntl.h>
 #include <unistd.h>
@@ -188,9 +189,10 @@ int main(int argc, char *argv[])
         methodthree(argv);
         return 0;
     }
+    char testarg[] = "-test";
     Timer t;
     double wTime, uTime, sTime;
-    if (argc == 4)
+    if (argc == 4 && strcmp(argv[3], testarg) == 0)
     {
         t.start();
         methodone(argv);
@@ -223,6 +225,11 @@ int main(int argc, char *argv[])
         cout << "Elapsed wallclock time: " << wTime << endl;
         cout << "Elapsed user time: " << uTime << endl;
         cout << "Elapsed system time: " << sTime << endl;
+    }
+    else
+    {
+        cerr << "incorrect arguments" << endl;
+        return 1;
     }
     return 0;
 }
