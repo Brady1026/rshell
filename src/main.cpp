@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <csignal>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -84,7 +85,7 @@ void commandgen(vector<string> *tokens, vector<command> *commands)
             }
             tokentype = none;
         }
-        tokit++;
+        ++tokit;
     }
     commands->push_back(temp);
     return;
@@ -136,7 +137,7 @@ void parsetokens(vector<string> *tokens)
                 }
             }
         }
-        tokit++;
+        ++tokit;
     }
 }
 
@@ -157,13 +158,13 @@ void exec_children(vector<command> *commands, int size)
             pipefdstoclose.push_back(pipefd[2 * commandno]);
             pipefdstoclose.push_back(pipefd[(2 * commandno) + 1]);
         }
-        commandno++;
+        ++commandno;
     }
     vector<int> pids;
     commandno = 0;
-    int pid = 0;
     while(commandno < commands->size())
     {
+        int pid = 0;
         pid = fork();
         if(pid == -1)
         {
@@ -196,17 +197,21 @@ void exec_children(vector<command> *commands, int size)
                     exit(EXIT_FAILURE);
                 }
             }
-            int fdi, fdo;
             const char **args = new const char*[size];
             unsigned argindex = 0;
             for(unsigned j = 0; j < commands->at(commandno).arguments.size(); j++)
             {
                 args[argindex] = commands->at(commandno).arguments.at(j).c_str();
-                argindex++;
+                ++argindex;
             }
             args[argindex] = NULL;
+            if(args[0] == NULL)
+            {
+                exit(EXIT_SUCCESS);
+            }
             if(commands->at(commandno).infiles.size() > 0)
             {
+                int fdi;
                 for(unsigned i = 0; i < commands->at(commandno).infiles.size(); i++)
                 {
                     fdi = open(commands->at(commandno).infiles.at(i).c_str(), O_RDONLY);
@@ -224,6 +229,7 @@ void exec_children(vector<command> *commands, int size)
             }
             if(commands->at(commandno).outfiles.size() > 0)
             {
+                int fdo;
                 for(unsigned i = 0; i < commands->at(commandno).outfiles.size(); i++)
                 {
                     if(commands->at(commandno).outtype.at(i) == 0)
@@ -251,12 +257,65 @@ void exec_children(vector<command> *commands, int size)
                     exit(EXIT_FAILURE);
                 }
             }
-            int returnvalue = execvp(args[0], (char **)args);
-            if (returnvalue == -1)
+            if(commands->at(commandno).arguments.at(0).compare("cd") == 0)
             {
-                perror("execvp()");
-                exit(EXIT_FAILURE);
+                if(commands->at(commandno).arguments.size() == 1)
+                {
+                    if(chdir(getenv("HOME")) == -1)
+                    {
+                        perror("chdir()");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                else if(chdir(commands->at(commandno).arguments.at(1).c_str()) == -1)
+                {
+                    perror("chdir()");
+                    exit(EXIT_FAILURE);
+                }
+                char buf[BUFSIZ];
+                if(getcwd(buf, sizeof(buf)) == NULL)
+                {
+                    perror("getcwd()");
+                    exit(EXIT_FAILURE);
+                }
+                if(setenv("PWD", buf, 1) == -1)
+                {
+                    perror("setenv()");
+                    exit(EXIT_FAILURE);
+                }
+                exit(EXIT_SUCCESS);
             }
+            if(commands->at(commandno).arguments.at(0).compare("exit") == 0)
+            {
+                exit(EXIT_SUCCESS);
+            }
+            string path = getenv("PATH");
+            char *cpath = new char[path.size() + 1];
+            strcpy(cpath, path.c_str());
+            char delimit[] = ":";
+            char *temp = strtok(cpath, delimit);
+            char *directory = new char[path.size() + 1];
+            while(temp != NULL)
+            {
+                strcpy(directory, temp);
+                if(directory[strlen(directory)] != '/')
+                {
+                    strcat(directory, "/");
+                }
+                strcat(directory, commands->at(commandno).arguments.at(0).c_str());
+                args[0] = directory;
+                if(execv(args[0], (char **)args) == -1)
+                {
+                    if(errno != ENOENT)
+                    {
+                        perror("execv()");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                temp = strtok(NULL, delimit);
+            }
+            perror("execv()");
+            exit(EXIT_FAILURE);
             delete args;
             delete[] pipefd;
         }
@@ -264,7 +323,7 @@ void exec_children(vector<command> *commands, int size)
         {
             pids.push_back(pid);
         }
-        commandno++;
+        ++commandno;
     }
     for(unsigned i = 0; i < pipefdstoclose.size(); i++)
     {
@@ -288,18 +347,6 @@ void exec_children(vector<command> *commands, int size)
 
 void execute(vector<command> *commands, int size)
 {
-    const char **args = new const char*[size];
-    unsigned argindex = 0;
-    for(unsigned i = 0; i < commands->size(); i++)
-    {
-        for(unsigned j = 0; j < commands->at(i).arguments.size(); j++)
-        {
-            args[argindex] = commands->at(i).arguments.at(j).c_str();
-            argindex++;
-        }
-    }
-    if(strcmp(args[0], "exit") == 0)
-        exit(EXIT_SUCCESS);
     int pid = fork();
     switch (pid)
     {
@@ -315,14 +362,52 @@ void execute(vector<command> *commands, int size)
                  }
                  break;
     }
-    delete[] args;
+    for(unsigned i = 0; i < commands->size(); i++)
+    {
+        if(commands->at(i).arguments.size() == 0)
+        {
+            return;
+        }
+        if(commands->at(i).arguments.at(0).compare("cd") == 0)
+        {
+            if(commands->at(i).arguments.size() == 1)
+            {
+                if(chdir(getenv("HOME")) == -1)
+                {
+                    perror("chdir()");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else if(chdir(commands->at(i).arguments.at(1).c_str()) == -1)
+            {
+                perror("chdir()");
+                exit(EXIT_FAILURE);
+            }
+            char buf[BUFSIZ];
+            if(getcwd(buf, sizeof(buf)) == NULL)
+            {
+                perror("getcwd()");
+                exit(EXIT_FAILURE);
+            }
+            if(setenv("PWD", buf, 1) == -1)
+            {
+                perror("setenv()");
+                exit(EXIT_FAILURE);
+            }
+            return;
+        }
+        if(commands->at(i).arguments.at(0).compare("exit") == 0)
+        {
+            exit(EXIT_SUCCESS);
+        }
+    }
     return;
 }
 
 void shell()
 {
     string input;
-    cout << "$ ";
+    cout << getenv("PWD") << " $ ";
     getline(cin, input);
     char *cinput = new char[input.size() + 1];
     char delimit[] = " ";
@@ -343,8 +428,14 @@ void shell()
     return;
 }
 
+void sign_handl(int signum)
+{
+    return;
+}
+
 int main()
 {
+    signal(SIGINT, sign_handl);
     while(true)
         shell();
 }
