@@ -13,7 +13,7 @@
 
 using namespace std;
 
-const char operators[] = "><|";
+const char operators[] = "><|;";
 
 struct command
 {
@@ -30,7 +30,7 @@ void commandgen(vector<string> *tokens, vector<command> *commands)
     temp.pipeout = false;
     command empty = temp;
     vector<string>::iterator tokit = tokens->begin();
-    enum {none, fileread, filenew, fileappend, pipe} tokentype = none;
+    enum {none, fileread, filenew, fileappend, pipe, connect, connectand, connector} tokentype = none;
     bool inpipe = false;
 
     while(tokit < tokens->end())
@@ -57,6 +57,10 @@ void commandgen(vector<string> *tokens, vector<command> *commands)
         {
             tokentype = pipe;
         }
+        else if(tokit->compare(";") == 0)
+        {
+            tokentype = connect;
+        }
         else
         {
             if(tokentype == fileread)
@@ -76,6 +80,13 @@ void commandgen(vector<string> *tokens, vector<command> *commands)
                 temp.pipeout = true;
                 inpipe = true;
                 commands->push_back(temp);
+                tokentype = none;
+                continue;
+            }
+            else if(tokentype == connect)
+            {
+                commands->push_back(temp);
+                temp = empty;
                 tokentype = none;
                 continue;
             }
