@@ -220,6 +220,10 @@ void exec_children(vector<command> *commands, int size)
             {
                 exit(EXIT_SUCCESS);
             }
+            if(args[0][0] == '#')
+            {
+                exit(EXIT_SUCCESS);
+            }
             if(commands->at(commandno).infiles.size() > 0)
             {
                 int fdi;
