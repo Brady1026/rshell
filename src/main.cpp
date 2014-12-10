@@ -406,8 +406,15 @@ void execute(vector<command> *commands, int size)
 
 void shell()
 {
+    char host[BUFSIZ];
+    if(gethostname(host, BUFSIZ) == -1)
+    {
+        perror("gethostname()");
+        exit(EXIT_FAILURE);
+    }
     string input;
-    cout << getenv("PWD") << " $ ";
+    cout << getenv("PWD") << endl;
+    cout << getenv("LOGNAME") << '@' << host << " $ ";
     getline(cin, input);
     char *cinput = new char[input.size() + 1];
     char delimit[] = " ";
