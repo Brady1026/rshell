@@ -306,6 +306,16 @@ void exec_children(vector<command> *commands, int size)
             char delimit[] = ":";
             char *temp = strtok(cpath, delimit);
             char *directory = new char[path.size() + 1];
+            strcat(directory, commands->at(commandno).arguments.at(0).c_str());
+            args[0] = directory;
+            if(execv(args[0], (char **)args) == -1)
+            {
+                if(errno != ENOENT)
+                {
+                    perror("execv()");
+                    exit(EXIT_FAILURE);
+                }
+            }
             while(temp != NULL)
             {
                 strcpy(directory, temp);
